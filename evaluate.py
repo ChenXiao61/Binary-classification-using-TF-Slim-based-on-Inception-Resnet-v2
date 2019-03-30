@@ -19,15 +19,15 @@ slim = tf.contrib.slim
 
 
 #================ DATASET INFORMATION ======================
-log_dir = '/home/admin-pc/inception2-resnet/logs_7000'
+log_dir = './logs_7000'
 
-log_eval = '/home/admin-pc/inception2-resnet/logs_7000_test_280'
+log_eval = './logs_7000_test_273'
 
-dataset_dir = '/home/admin-pc/inception2-resnet/logs_test_280'#在原来代码的基础上，将test和train的tfrecords分成连个文件夹放，test和train数据互不影响
+dataset_dir = '/home/admin-pc/Documents/binary/ChenXiao/adjust_test_data'#在原来代码的基础上，将test和train的tfrecords分成连个文件夹放，test和train数据互不影响
 
-batch_size = 8
+batch_size = 273
 
-num_epochs = 4
+num_epochs = 100
 
 #Get the latest checkpoint file
 checkpoint_file = tf.train.latest_checkpoint(log_dir)
@@ -64,15 +64,15 @@ def run():
         predictions = tf.argmax(end_points['Predictions'], 1)
         probabilities = end_points['Predictions']
         accuracy, accuracy_update = tf.contrib.metrics.streaming_accuracy(predictions, labels)
-        recall, recall_update = tf.contrib.metrics.streaming_recall(predictions, labels)#添加1
+        recall, recall_update = tf.contrib.metrics.streaming_recall(predictions, labels)#add1
         #spectivity,spectivity_update = tf.contrib.metrics.streaming_specificity_at_sensitivity(predictions,labels,recall_update,num_thresholds=200)
-        precise, precise_update = tf.contrib.metrics.streaming_recall(predictions, labels)#添加2
-        f1_score, f1_score_update = tf.contrib.metrics.f1_score(labels,predictions)#添加3
-        auc, auc_update = tf.contrib.metrics.streaming_auc(predictions,labels,num_thresholds=200,curve='ROC')#添加4
+        precise, precise_update = tf.contrib.metrics.streaming_recall(predictions, labels)#add2
+        f1_score, f1_score_update = tf.contrib.metrics.f1_score(labels,predictions)#add3
+        
 
 
         #metrics_op = tf.group([accuracy_update,recall_update,spectivity_update,precise_update,f1_score_update,auc_update])#改动1
-        metrics_op = tf.group([accuracy_update,recall_update,precise_update,f1_score_update,auc_update])#改动1
+        metrics_op = tf.group([accuracy_update,recall_update,precise_update,f1_score_update])#改动1
 
 
         #Create the global step and an increment op for monitoring
@@ -86,17 +86,17 @@ def run():
             Simply takes in a session, runs the metrics op and some logging information.
             '''
             start_time = time.time()
-            _, global_step_count, accuracy_value ,recall_value ,precise_value , f1_score_value ,auc_value = sess.run([metrics_op,
-                                           global_step_op, accuracy,recall,precise,f1_score,auc])#改动2
+            _, global_step_count, accuracy_value ,recall_value ,precise_value , f1_score_value  = sess.run([metrics_op,
+                                           global_step_op, accuracy,recall,precise,f1_score])#改动2
             time_elapsed = time.time() - start_time
 
             #Log some information
             logging.info('Global Step %s: Streaming Accuracy: %.4f , Recall(Sensitivity): %.4f ,Precise: %.4f, F1_Score: %.4f, Auc: %.4f (%.2f sec/step)',
-                         global_step_count, accuracy_value, recall_value,precise_value, f1_score_value ,auc_value,time_elapsed)#改动3
+                         global_step_count, accuracy_value, recall_value,precise_value, f1_score_value ,time_elapsed)#改动3
 
-            #return accuracy_value,recall_value,spectivity_value,precise_value,f1_score_value ,auc_value
+            #return accuracy_value,recall_value,spectivity_value,precise_value,f1_score_value 
 
-            return accuracy_value, recall_value,precise_value, f1_score_value, auc_value
+            return accuracy_value, recall_value,precise_value, f1_score_value
 
 
         #Define some scalar quantities to monitor
@@ -105,7 +105,7 @@ def run():
        # tf.summary.scalar('Test_Spectivity', spectivity)
         tf.summary.scalar('Test_Precise', precise)
         tf.summary.scalar('Test_F1_Score', f1_score)
-        tf.summary.scalar('Test_Auc', auc)
+        
 
         my_summary_op = tf.summary.merge_all()
 
@@ -124,7 +124,7 @@ def run():
                     #logging.info('Current Streaming Spectivity: %.4f', sess.run(spectivity))
                     logging.info('Current Streaming Precise: %.4f', sess.run(precise))
                     logging.info('Current Streaming F1_score: %.4f', sess.run(f1_score))
-                    logging.info('Current Streaming Auc: %.4f', sess.run(auc))
+                 
 
                 #Compute summaries every 10 steps and continue evaluating
                 if step % 10 == 0:
@@ -143,7 +143,7 @@ def run():
             #logging.info('Final Streaming Spectivity: %.4f', sess.run(spectivity))
             logging.info('Final Streaming Precise: %.4f', sess.run(precise))
             logging.info('Final Streaming F1_score: %.4f', sess.run(f1_score))
-            logging.info('Final Streaming Auc: %.4f', sess.run(auc))
+           
 
             #Now we want to visualize the last batch's images just to see what our model has predicted
             raw_images, labels, predictions,probabilities = sess.run([images, labels, predictions,probabilities])
@@ -152,11 +152,11 @@ def run():
             FP = 0
             TN = 0
 
-            for i in range(10):
+            for i in range(273):
                 image, label, prediction,probability = raw_images[i], labels[i], predictions[i],probabilities[i][0]
                 prediction_name, label_name = dataset.labels_to_name[prediction], dataset.labels_to_name[label]
-                if (label_name == 'Normal'):#如果标签为0
-                    if (prediction_name == 'Normal'):#如果预测为0
+                if (label_name == 'Normal'):#if the label is Normal
+                    if (prediction_name == 'Normal'):
                         TP = TP + 1
                     else:
                         FN = FN + 1
@@ -194,25 +194,19 @@ def run():
             logging.info('Model evaluation has completed! Visit TensorBoard for more information regarding your evaluation.')
             print(TP, FN, FP, TN)
 
-            y_test = TP + FP + FN + TN
-            # correct_predictions = float(sum(all_predictions == y_test))
-            # wrong_predictions = float(sum(all_predictions == y_test))
+            y_test = TP + FP + FN + TN         
             precision = float(TP / (TP + FP))
             recall = float(TP / (TP + FN))
             Acc = float((TP + TN) / (TP + FP + FN + TN))
             TPR = float(TP / (TP + FN))  # sensitivity召回率 （TPR，真阳性率，灵敏度，召回率）
             TNR = float(TN / (FP + TN))  # specificity（TNR，真阴性率，特异度）
-
             FNR = float(FN / (TP + FN))  # 漏诊率，（1-sensitivity）
             FPR = float(FP / (TN + FP))  # 假正例率(1-specificity),假阳性率，误诊率
-            # print(sum(all_predictions))
+         
             print('\nTotal number of test examples: {}'.format(y_test))
-
             print('Accuracy: %.2f%%' % (Acc * 100))
-
             print('precision: %.2f%%' % (precision * 100))
-            print('sensitivity/recall(TPR): %.2f%%' % (recall * 100))
-            # print('sensitivity(TPR):%.2f%%' % (TPR*100))
+            print('sensitivity/recall(TPR): %.2f%%' % (recall * 100))    
             print('specificity(TNR): %.2f%%' % (TNR * 100))
 
 
